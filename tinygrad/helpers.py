@@ -1,7 +1,8 @@
 from __future__ import annotations
+from collections import deque
 import os, functools, platform, time, re, contextlib, operator, hashlib, pickle, sqlite3, cProfile, pstats, tempfile, pathlib, string, ctypes, sys
 import itertools, urllib.request, subprocess, shutil, math
-from typing import Dict, Tuple, Union, List, ClassVar, Optional, Iterable, Any, TypeVar, TYPE_CHECKING, Callable, Sequence
+from typing import DefaultDict, Dict, Tuple, Union, List, ClassVar, Optional, Iterable, Any, TypeVar, TYPE_CHECKING, Callable, Sequence
 if TYPE_CHECKING:  # TODO: remove this and import TypeGuard from typing once minimum python supported version is 3.10
   from typing_extensions import TypeGuard
   from tinygrad.shape.shapetracker import sint
@@ -273,3 +274,13 @@ class tinytqdm:
     sz = max(term-5-len(suf)-len(self.desc), 1)
     bar = f'\r{self.desc}{round(100*prog):3}%|{"█"*round(sz*prog)}{" "*(sz-round(sz*prog))}{suf}' if self.t else f'\r{self.desc}{suf}{" "*term}'
     print(bar[:term+1],flush=True,end='\n'*close,file=sys.stderr)
+
+T = TypeVar("T")
+def bfs(graph:DefaultDict[T, List[T]], in_degree:DefaultDict[T, int], on_deque:Callable[[T], None]) -> None:
+  queue = deque(x for x, d in in_degree.items() if d == 0)
+  while queue:
+    v = queue.popleft()
+    on_deque(v)
+    for u in graph[v]:
+      in_degree[u] -= 1
+      if in_degree[u] == 0: queue.append(u)

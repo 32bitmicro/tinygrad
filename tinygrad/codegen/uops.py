@@ -7,7 +7,7 @@ from dataclasses import dataclass, field
 from tinygrad.dtype import ConstType, dtypes, DType
 from tinygrad.shape.symbolic import sint, Variable
 from tinygrad.ops import UnaryOps, BinaryOps, TernaryOps, exec_alu
-from tinygrad.helpers import prod, DEBUG, getenv
+from tinygrad.helpers import bfs, prod, DEBUG, getenv
 
 # the order of these UOps controls the order of the toposort
 class UOps(Enum):
@@ -325,18 +325,13 @@ class UOpGraph:
         early_in_degree[n] += 1
         children[x].append(n)
       unprocessed_nodes += list(n.vin)
-    early_queue = [x for x in all_nodes if early_in_degree[x] == 0]
     replace_nodes: Dict[UOp, UOp] = {}
-    while len(early_queue):
-      n = early_queue.pop(0)
-      if n in replace_nodes: continue
+    def on_deque(n:UOp):
+      if n in replace_nodes: return
       key = (n.uop, n.dtype, tuple(replace_nodes.get(x, x) for x in n.vin), n.arg)
       if found:=self.nodes.get(key): replace_nodes[n] = found
       else: replace_nodes[n] = self.nodes[key] = UOp(*key)
-      for x in children[n]:
-        early_in_degree[x] -= 1
-        if early_in_degree[x] == 0:
-          early_queue.append(x)
+    bfs(children, early_in_degree, on_deque)
     return replace_nodes.get(sink, sink)
 
   def linearize(self, extra_pm:Optional[PatternMatcher]=None, type_verify=True):
